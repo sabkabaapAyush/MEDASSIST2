@@ -39,11 +39,15 @@ export default function InputSection({ onGuidanceReceived }: { onGuidanceReceive
 
   const assessMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      const response = await apiRequest("POST", "/api/first-aid/assess", null);
+      // Send the form data directly to the API
+      const response = await fetch('/api/first-aid/assess', {
+        method: 'POST',
+        body: formData,
+      });
       
-      // Get all the form data from the response
-      for (const [key, value] of Array.from(formData.entries())) {
-        await response.formData().append(key, value);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to process first aid request');
       }
       
       return response.json();
@@ -69,12 +73,21 @@ export default function InputSection({ onGuidanceReceived }: { onGuidanceReceive
         });
       }
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to process your first aid request. Please try again.",
-        variant: "destructive"
-      });
+    onError: (error: any) => {
+      // Check if it's an API unavailability error
+      if (error.response && error.response.data && error.response.data.apiUnavailable) {
+        toast({
+          title: "AI Service Unavailable",
+          description: "The AI assessment service is temporarily unavailable. Please try again later or contact support.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to process your first aid request. Please try again.",
+          variant: "destructive"
+        });
+      }
       console.error("Assessment error:", error);
     }
   });

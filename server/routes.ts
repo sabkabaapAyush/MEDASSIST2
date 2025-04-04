@@ -4,12 +4,16 @@ import { storage } from "./storage";
 import multer from "multer";
 import { z } from "zod";
 import path from "path";
+import fs from "fs";
+import os from "os";
+import { v4 as uuidv4 } from "uuid";
 import { 
   insertPatientSchema, 
   insertMedicalRecordSchema, 
   insertFirstAidGuidanceSchema,
   firstAidRequestSchema
 } from "@shared/schema";
+import { generateFirstAidGuidance } from "./services/openai-service";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -170,38 +174,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // First Aid Assessment and Guidance routes
   apiRouter.post("/first-aid/assess", upload.array("images", 5), async (req: Request, res: Response) => {
     try {
-      let images: string[] = [];
       let text = req.body.text || "";
-      let audio = req.body.audio || "";
       let patientId = req.body.patientId ? parseInt(req.body.patientId) : undefined;
+      let audioFilePath: string | undefined = undefined;
+      let imageFiles: string[] = [];
       
-      // Process any uploaded images
-      if (req.files && Array.isArray(req.files)) {
-        images = (req.files as Express.Multer.File[]).map(file => {
-          // In a real app, we would save these files to a storage service
-          // Here, we just encode as Base64 for demonstration
-          return Buffer.from(file.buffer).toString('base64');
-        });
+      // Create a temporary directory for uploaded files
+      const tmpDir = path.join(os.tmpdir(), `first-aid-${uuidv4()}`);
+      if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
       }
       
-      // Validate the request data
-      firstAidRequestSchema.parse({ images, text, audio, patientId });
+      // Process uploaded images
+      if (req.files && Array.isArray(req.files)) {
+        // Using any type to work around TypeScript limitations with multer
+        const uploadedFiles = req.files as any[];
+        imageFiles = await Promise.all(uploadedFiles.map(async (file, index) => {
+          const imagePath = path.join(tmpDir, `image-${index}.jpg`);
+          fs.writeFileSync(imagePath, file.buffer);
+          return imagePath;
+        }));
+      }
       
-      // For now, we'll return a simple assessment response based on the input
-      // In a real application, this would involve more sophisticated analysis
-      const assessment = "Based on the provided information, this appears to be a minor injury.";
-      const steps = [
-        "Clean the area with mild soap and water.",
-        "Apply an antiseptic ointment to prevent infection.",
-        "Cover with a sterile bandage or dressing.",
-        "Monitor for signs of infection or worsening symptoms.",
-        "Change the dressing daily or when it becomes wet or dirty."
-      ];
-      const warnings = [
-        "Seek medical attention if the area becomes increasingly red, swollen, or painful.",
-        "If fever develops, consult a healthcare provider immediately.",
-        "If the wound is deep or has jagged edges, medical stitches may be required."
-      ];
+      // Process audio if provided
+      if (req.body.audio) {
+        // Handle base64 audio data
+        if (typeof req.body.audio === 'string' && req.body.audio.startsWith('data:audio')) {
+          // Extract base64 data from data URL
+          const base64Data = req.body.audio.split(',')[1];
+          const audioBuffer = Buffer.from(base64Data, 'base64');
+          
+          // Save to temporary file
+          audioFilePath = path.join(tmpDir, `audio-${Date.now()}.webm`);
+          fs.writeFileSync(audioFilePath, audioBuffer);
+        }
+      }
+      
+      // Validate basic request data
+      firstAidRequestSchema.parse({ 
+        images: imageFiles, 
+        text, 
+        audio: audioFilePath ? 'audio-recorded' : undefined, 
+        patientId 
+      });
+      
+      // Use OpenAI to analyze the input and generate guidance
+      const aiResult = await generateFirstAidGuidance(
+        imageFiles,
+        text,
+        audioFilePath
+      );
       
       // Create a first aid guidance record if a patient ID was provided
       let guidanceRecord = null;
@@ -211,26 +233,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (patient) {
           guidanceRecord = await storage.createFirstAidGuidance({
             patientId,
-            assessment,
-            steps,
-            warnings
+            assessment: aiResult.assessment,
+            steps: aiResult.steps,
+            warnings: aiResult.warnings
           });
         }
       }
       
+      // Clean up temporary files
+      try {
+        for (const file of [...imageFiles, audioFilePath].filter(Boolean)) {
+          if (file && fs.existsSync(file)) {
+            fs.unlinkSync(file);
+          }
+        }
+        if (fs.existsSync(tmpDir)) {
+          fs.rmdirSync(tmpDir, { recursive: true });
+        }
+      } catch (cleanupError) {
+        console.error("Error cleaning up temporary files:", cleanupError);
+      }
+      
       res.json({
-        assessment,
-        steps,
-        warnings,
+        assessment: aiResult.assessment,
+        steps: aiResult.steps,
+        warnings: aiResult.warnings,
         savedToRecords: !!guidanceRecord,
         guidanceId: guidanceRecord?.id
       });
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid assessment request data", errors: error.errors });
       }
+      
       console.error("Error processing first aid request:", error);
-      res.status(500).json({ message: "Error processing first aid request" });
+      
+      // Check if it's an OpenAI API error
+      if (error?.message && typeof error.message === 'string' && error.message.includes('API service unavailable')) {
+        return res.status(503).json({ 
+          message: "The AI service is temporarily unavailable. Please try again later.",
+          apiUnavailable: true 
+        });
+      }
+      
+      res.status(500).json({ message: "Error processing first aid request: " + (error?.message || 'Unknown error') });
     }
   });
 
