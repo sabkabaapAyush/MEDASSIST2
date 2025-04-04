@@ -1,0 +1,46 @@
+{
+  "appId": "com.medassist.app",
+  "productName": "MedAssist",
+  "directories": {
+    "output": "dist-electron"
+  },
+  "files": [
+    "electron/**/*",
+    "server/**/*",
+    "client/dist/**/*",
+    "shared/**/*",
+    "public/**/*",
+    "package.json",
+    "node_modules/**/*",
+    "*.json",
+    "*.js",
+    "*.ts",
+    "!**/*.map",
+    "!**/*.md",
+    "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+    "!**/node_modules/.bin",
+    "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+    "!**/{.git,.hg,.svn,CVS,RCS,SCCS,__pycache__,.DS_Store,thumbs.db,.gitignore,.gitattributes,.eslintrc,.editorconfig,.flowconfig,.jshintrc,.npmignore,.prettierrc,.prettierignore,.babelrc,.yarn-integrity,.yarn-metadata.json,yarn-error.log}"
+  ],
+  "extraMetadata": {
+    "main": "electron/main.js"
+  },
+  "win": {
+    "target": "nsis",
+    "icon": "public/favicon.svg"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
+  },
+  "mac": {
+    "target": "dmg",
+    "icon": "public/favicon.svg"
+  },
+  "linux": {
+    "target": "AppImage",
+    "icon": "public/favicon.svg"
+  }
+}
