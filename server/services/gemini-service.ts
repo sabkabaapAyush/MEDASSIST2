@@ -3,7 +3,7 @@ import fs from "fs";
 import { AIAssessmentResult } from "./ai-service";
 
 // Base URL for Gemini API
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1";
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 /**
@@ -63,13 +63,18 @@ export async function generateFirstAidGuidanceWithGemini(
       const imageBuffer = fs.readFileSync(imagePath);
       const base64Image = imageBuffer.toString('base64');
       
+      // Determine the mime type based on file extension
+      const mimeType = imagePath.toLowerCase().endsWith('.png') 
+        ? 'image/png' 
+        : 'image/jpeg';
+      
       contentParts.push({
         text: "Please analyze this image of the injury/condition:"
       });
       
       contentParts.push({
         inlineData: {
-          mimeType: "image/jpeg",
+          mimeType,
           data: base64Image
         }
       });
@@ -77,7 +82,7 @@ export async function generateFirstAidGuidanceWithGemini(
     
     // Call the Gemini API
     const response = await axios.post(
-      `${GEMINI_API_URL}/models/gemini-pro-vision:generateContent`,
+      `${GEMINI_API_URL}/models/gemini-1.5-pro-latest:generateContent`,
       {
         contents: [
           {
@@ -93,12 +98,17 @@ export async function generateFirstAidGuidanceWithGemini(
         headers: {
           "Content-Type": "application/json",
           "x-goog-api-key": GEMINI_API_KEY
-        },
-        params: {
-          key: GEMINI_API_KEY
         }
       }
     );
+    
+    // Check if the response has the expected structure
+    if (!response.data || !response.data.candidates || !response.data.candidates[0] || 
+        !response.data.candidates[0].content || !response.data.candidates[0].content.parts || 
+        !response.data.candidates[0].content.parts[0]) {
+      console.error("Unexpected Gemini API response format:", JSON.stringify(response.data));
+      throw new Error("Received an invalid response format from Gemini API");
+    }
     
     const content = response.data.candidates[0].content.parts[0].text;
     if (!content) {

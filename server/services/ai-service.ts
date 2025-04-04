@@ -15,6 +15,7 @@ export interface AIAssessmentResult {
  * @param textDescription Text description of the injury/condition
  * @param audioFilePath Path to the audio file if available
  * @returns First aid assessment results
+ * @throws Error if all AI services are unavailable
  */
 export async function generateFirstAidGuidanceUnified(
   images: string[] = [],
@@ -29,20 +30,32 @@ export async function generateFirstAidGuidanceUnified(
   
   // Attempt services based on preference or availability
   try {
-    // Use Gemini if it's preferred or if other keys aren't available
-    if (preferredApi === "gemini" || 
-        (!process.env.OPENAI_API_KEY && !process.env.DEEPSEEK_API_KEY && process.env.GEMINI_API_KEY)) {
+    // Default to Gemini first since we're experiencing OpenAI quota issues
+    if (process.env.GEMINI_API_KEY && (preferredApi === "gemini" || !preferredApi)) {
       return await generateFirstAidGuidanceWithGemini(images, textDescription, audioFilePath);
     }
     
-    // Try DeepSeek if preferred or if OpenAI key is not available but DeepSeek is
+    // Try DeepSeek if preferred or if Gemini key is not available but DeepSeek is
     if (preferredApi === "deepseek" || 
-        (!process.env.OPENAI_API_KEY && process.env.DEEPSEEK_API_KEY)) {
+        (!process.env.GEMINI_API_KEY && process.env.DEEPSEEK_API_KEY)) {
       return await generateFirstAidGuidanceWithDeepSeek(images, textDescription, audioFilePath);
     }
     
-    // Default: Try OpenAI first
-    return await generateFirstAidGuidance(images, textDescription, audioFilePath);
+    // Try OpenAI only if explicitly preferred or if it's the only service available
+    if (preferredApi === "openai" || 
+        (!process.env.GEMINI_API_KEY && !process.env.DEEPSEEK_API_KEY && process.env.OPENAI_API_KEY)) {
+      return await generateFirstAidGuidance(images, textDescription, audioFilePath);
+    }
+    
+    // If we reach here with no preferred API or if the preferred API doesn't have credentials,
+    // try Gemini again as default
+    if (process.env.GEMINI_API_KEY) {
+      return await generateFirstAidGuidanceWithGemini(images, textDescription, audioFilePath);
+    }
+    
+    // If we reach this point, none of the AI services are available
+    // Return a rejected promise to satisfy TypeScript
+    return Promise.reject(new Error("No AI service is available. Please check your API credentials."));
   } catch (error) {
     console.log("Primary AI service failed, attempting fallbacks...");
     if (error instanceof Error) {
