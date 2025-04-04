@@ -153,8 +153,19 @@ export default function FirstAidGuidance({ guidanceData }: { guidanceData?: Guid
             <div className="mt-6 bg-blue-50 p-4 rounded-md inline-block mx-auto text-left">
               <h4 className="text-sm font-medium text-blue-700">Multi-AI Provider Support</h4>
               <p className="text-xs text-blue-600 mt-1">
-                This application will automatically switch between OpenAI and DeepSeek AI to ensure reliable service.
+                This application will automatically switch between OpenAI, DeepSeek, and Gemini AI to ensure reliable service.
               </p>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  OpenAI
+                </span>
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                  DeepSeek
+                </span>
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  Gemini
+                </span>
+              </div>
             </div>
           </div>
         )}

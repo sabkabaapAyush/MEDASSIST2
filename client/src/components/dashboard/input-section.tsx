@@ -98,7 +98,28 @@ export default function InputSection({ onGuidanceReceived }: { onGuidanceReceive
         if (errorData && errorData.apiUnavailable) {
           toast({
             title: "AI Services Unavailable",
-            description: "Both OpenAI and DeepSeek AI services are currently unavailable. The system will automatically try both services. Please try again later.",
+            description: "All AI services (OpenAI, DeepSeek, and Gemini) are currently unavailable. The system attempted all services. Please try again later.",
+            variant: "destructive",
+            duration: 6000
+          });
+        } else if (errorData?.message?.includes("OpenAI")) {
+          toast({
+            title: "OpenAI Service Error",
+            description: errorData.message,
+            variant: "destructive",
+            duration: 6000
+          });
+        } else if (errorData?.message?.includes("DeepSeek")) {
+          toast({
+            title: "DeepSeek Service Error",
+            description: errorData.message,
+            variant: "destructive",
+            duration: 6000
+          });
+        } else if (errorData?.message?.includes("Gemini")) {
+          toast({
+            title: "Gemini Service Error",
+            description: errorData.message,
             variant: "destructive",
             duration: 6000
           });

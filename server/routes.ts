@@ -273,7 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           (error.message.includes('API service unavailable') || 
            error.message.includes('All AI services are currently unavailable'))) {
         return res.status(503).json({ 
-          message: "The AI service is temporarily unavailable. Please try again later.",
+          message: "All AI services are temporarily unavailable. The system tried OpenAI, DeepSeek, and Gemini APIs. Please try again later.",
           apiUnavailable: true 
         });
       }

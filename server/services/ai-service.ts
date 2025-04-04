@@ -1,5 +1,6 @@
 import { generateFirstAidGuidance } from "./openai-service";
 import { generateFirstAidGuidanceWithDeepSeek } from "./deepseek-service";
+import { generateFirstAidGuidanceWithGemini } from "./gemini-service";
 
 // Interface for assessment results
 export interface AIAssessmentResult {
@@ -9,7 +10,7 @@ export interface AIAssessmentResult {
 }
 
 /**
- * Unified service that attempts to use OpenAI first, falling back to DeepSeek if OpenAI fails
+ * Unified service that attempts to use preferred AI service first, with multiple fallbacks
  * @param images Array of image file paths
  * @param textDescription Text description of the injury/condition
  * @param audioFilePath Path to the audio file if available
@@ -23,31 +24,80 @@ export async function generateFirstAidGuidanceUnified(
   // Check if an API preference was set in environment
   const preferredApi = process.env.PREFERRED_AI_API?.toLowerCase();
   
+  // Track errors for better diagnostics
+  const errors: Error[] = [];
+  
+  // Attempt services based on preference or availability
   try {
-    // Try DeepSeek first if preferred or if OpenAI key is not available
-    if (preferredApi === "deepseek" || (!process.env.OPENAI_API_KEY && process.env.DEEPSEEK_API_KEY)) {
+    // Use Gemini if it's preferred or if other keys aren't available
+    if (preferredApi === "gemini" || 
+        (!process.env.OPENAI_API_KEY && !process.env.DEEPSEEK_API_KEY && process.env.GEMINI_API_KEY)) {
+      return await generateFirstAidGuidanceWithGemini(images, textDescription, audioFilePath);
+    }
+    
+    // Try DeepSeek if preferred or if OpenAI key is not available but DeepSeek is
+    if (preferredApi === "deepseek" || 
+        (!process.env.OPENAI_API_KEY && process.env.DEEPSEEK_API_KEY)) {
       return await generateFirstAidGuidanceWithDeepSeek(images, textDescription, audioFilePath);
     }
     
     // Default: Try OpenAI first
     return await generateFirstAidGuidance(images, textDescription, audioFilePath);
   } catch (error) {
-    console.log("Primary API service failed, attempting fallback...");
+    console.log("Primary AI service failed, attempting fallbacks...");
+    if (error instanceof Error) {
+      errors.push(error);
+    }
     
-    // If primary API fails, try the fallback API
+    // First fallback attempt
     try {
-      if (preferredApi === "deepseek" && process.env.OPENAI_API_KEY) {
-        return await generateFirstAidGuidance(images, textDescription, audioFilePath);
-      } else if (process.env.DEEPSEEK_API_KEY) {
-        return await generateFirstAidGuidanceWithDeepSeek(images, textDescription, audioFilePath);
-      } else {
-        throw error; // No fallback available, rethrow original error
+      // Try Gemini as first fallback if available and not already tried
+      if (preferredApi !== "gemini" && process.env.GEMINI_API_KEY) {
+        return await generateFirstAidGuidanceWithGemini(images, textDescription, audioFilePath);
       }
-    } catch (fallbackError) {
-      console.error("Both primary and fallback AI services failed:", fallbackError);
-      throw new Error("All AI services are currently unavailable. Please try again later.");
+      
+      // Try DeepSeek as first fallback if available and not already tried
+      if (preferredApi !== "deepseek" && process.env.DEEPSEEK_API_KEY) {
+        return await generateFirstAidGuidanceWithDeepSeek(images, textDescription, audioFilePath);
+      }
+      
+      // Try OpenAI as first fallback if available and not already tried
+      if (preferredApi !== "openai" && process.env.OPENAI_API_KEY) {
+        return await generateFirstAidGuidance(images, textDescription, audioFilePath);
+      }
+      
+      // If we reached here, we need to try the next fallback
+      throw new Error("First fallback failed or no suitable first fallback available");
+    } catch (firstFallbackError) {
+      if (firstFallbackError instanceof Error) {
+        errors.push(firstFallbackError);
+      }
+      
+      // Second fallback attempt
+      try {
+        // Try the last remaining service option if available
+        if (preferredApi !== "openai" && preferredApi !== "gemini" && process.env.OPENAI_API_KEY) {
+          return await generateFirstAidGuidance(images, textDescription, audioFilePath);
+        }
+        
+        if (preferredApi !== "deepseek" && preferredApi !== "gemini" && process.env.DEEPSEEK_API_KEY) {
+          return await generateFirstAidGuidanceWithDeepSeek(images, textDescription, audioFilePath);
+        }
+        
+        if (preferredApi !== "openai" && preferredApi !== "deepseek" && process.env.GEMINI_API_KEY) {
+          return await generateFirstAidGuidanceWithGemini(images, textDescription, audioFilePath);
+        }
+        
+        // If we reached here with no success, we've exhausted all options
+        throw new Error("Second fallback failed or no suitable second fallback available");
+      } catch (secondFallbackError) {
+        if (secondFallbackError instanceof Error) {
+          errors.push(secondFallbackError);
+        }
+        
+        console.error("All AI services failed:", errors);
+        throw new Error("All AI services are currently unavailable. Please try again later.");
+      }
     }
   }
 }
-
-// No need to re-export the interface as it's already exported above
