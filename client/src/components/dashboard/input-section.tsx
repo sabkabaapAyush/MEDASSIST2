@@ -47,7 +47,11 @@ export default function InputSection({ onGuidanceReceived }: { onGuidanceReceive
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to process first aid request');
+        
+        // Throw a structured error object that we can process in onError
+        const error: any = new Error(errorData.message || 'Failed to process first aid request');
+        error.response = { data: errorData };
+        throw error;
       }
       
       return response.json();
@@ -73,15 +77,40 @@ export default function InputSection({ onGuidanceReceived }: { onGuidanceReceive
         });
       }
     },
-    onError: (error: any) => {
-      // Check if it's an API unavailability error
-      if (error.response && error.response.data && error.response.data.apiUnavailable) {
-        toast({
-          title: "AI Service Unavailable",
-          description: "The AI assessment service is temporarily unavailable. Please try again later or contact support.",
-          variant: "destructive"
-        });
-      } else {
+    onError: async (error: any) => {
+      try {
+        // Try to parse the error response
+        let errorData;
+        if (error.response) {
+          // If we have a response object with data property
+          errorData = error.response.data;
+        } else if (error.message && error.message.startsWith('Failed to process')) {
+          // The error from our fetch call
+          const errorResponseText = error.message.replace('Failed to process first aid request: ', '');
+          try {
+            errorData = JSON.parse(errorResponseText);
+          } catch {
+            errorData = { message: errorResponseText };
+          }
+        }
+        
+        // Check if it's an API unavailability error
+        if (errorData && errorData.apiUnavailable) {
+          toast({
+            title: "AI Services Unavailable",
+            description: "Both OpenAI and DeepSeek AI services are currently unavailable. The system will automatically try both services. Please try again later.",
+            variant: "destructive",
+            duration: 6000
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: errorData?.message || "Failed to process your first aid request. Please try again.",
+            variant: "destructive"
+          });
+        }
+      } catch (parseError) {
+        // If we can't parse the error, show a generic message
         toast({
           title: "Error",
           description: "Failed to process your first aid request. Please try again.",

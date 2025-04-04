@@ -1,29 +1,19 @@
-import OpenAI from "openai";
+import axios from "axios";
 import fs from "fs";
-import { promisify } from "util";
-import stream from "stream";
+import { AIAssessmentResult } from "./ai-service";
 
-// Initialize OpenAI client with API key
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// Helper function to convert readable stream to buffer
-const pipeline = promisify(stream.pipeline);
-
-// Interface for assessment results
-export interface AIAssessmentResult {
-  assessment: string;
-  steps: string[];
-  warnings: string[];
-}
+// Base URL for DeepSeek API
+const DEEPSEEK_API_URL = "https://api.deepseek.com/v1";
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 
 /**
- * Process multimodal input (images, text, audio) to generate first aid guidance
+ * Process multimodal input (images, text, audio) to generate first aid guidance using DeepSeek AI
  * @param images Array of image file paths
  * @param textDescription Text description of the injury/condition
  * @param audioFilePath Path to the audio file if available
  * @returns First aid assessment results
  */
-export async function generateFirstAidGuidance(
+export async function generateFirstAidGuidanceWithDeepSeek(
   images: string[] = [],
   textDescription: string = "",
   audioFilePath?: string
@@ -33,7 +23,7 @@ export async function generateFirstAidGuidance(
     
     // Transcribe audio if provided
     if (audioFilePath) {
-      audioTranscription = await transcribeAudio(audioFilePath);
+      audioTranscription = await transcribeAudioWithDeepSeek(audioFilePath);
     }
     
     // Combine text and audio inputs
@@ -42,14 +32,21 @@ export async function generateFirstAidGuidance(
       audioTranscription ? `Voice Description: ${audioTranscription}` : ""
     ].filter(Boolean).join("\n\n");
     
-    // Prepare messages for OpenAI
+    // Prepare messages for DeepSeek
     const messages: any[] = [
       {
         role: "system",
         content: `You are a first aid expert. Analyze the provided information about an injury or medical condition and provide:
         1. A clear assessment of the situation
         2. Step-by-step first aid instructions
-        3. Warning signs that would indicate the need to seek professional medical attention`
+        3. Warning signs that would indicate the need to seek professional medical attention
+
+        Format your response as a JSON object with the following structure:
+        {
+          "assessment": "your assessment of the situation",
+          "steps": ["step 1", "step 2", "step 3", ...],
+          "warnings": ["warning 1", "warning 2", "warning 3", ...]
+        }`
       }
     ];
     
@@ -63,35 +60,45 @@ export async function generateFirstAidGuidance(
     
     // Add images if available
     if (images.length > 0) {
-      const imageContents = images.map(imagePath => ({
-        type: "image_url",
-        image_url: {
-          url: `data:image/jpeg;base64,${fs.readFileSync(imagePath).toString('base64')}`
-        }
-      }));
-      
-      messages.push({
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "Please analyze these images of the injury/condition and provide appropriate first aid guidance."
-          },
-          ...imageContents
-        ]
-      });
+      for (const imagePath of images) {
+        const base64Image = fs.readFileSync(imagePath).toString('base64');
+        messages.push({
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Please analyze this image of the injury/condition and provide appropriate first aid guidance."
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/jpeg;base64,${base64Image}`
+              }
+            }
+          ]
+        });
+      }
     }
     
-    // Call the API with gpt-4o (the most advanced model)
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      messages,
-      response_format: { type: "json_object" },
-      temperature: 0.7,
-      max_tokens: 1000,
-    });
+    // Call the DeepSeek API
+    const response = await axios.post(
+      `${DEEPSEEK_API_URL}/chat/completions`,
+      {
+        model: "deepseek-vision",
+        messages,
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+        max_tokens: 1000,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
+        }
+      }
+    );
     
-    const content = response.choices[0].message.content;
+    const content = response.data.choices[0].message.content;
     if (!content) {
       throw new Error("No content in the response");
     }
@@ -111,11 +118,11 @@ export async function generateFirstAidGuidance(
       return extractStructuredDataFromText(content);
     }
   } catch (error: any) {
-    console.error("Error generating first aid guidance:", error);
+    console.error("Error generating first aid guidance with DeepSeek:", error);
     
     // If the error is related to API rate limits or authentication
-    if (error?.status === 429 || error?.status === 401) {
-      throw new Error(`API service unavailable. Please try again later or contact support to update API credentials.`);
+    if (error?.response?.status === 429 || error?.response?.status === 401) {
+      throw new Error(`DeepSeek API service unavailable. Please try again later or contact support to update API credentials.`);
     }
     
     throw new Error(`Failed to generate first aid guidance: ${error?.message || 'Unknown error'}`);
@@ -123,27 +130,38 @@ export async function generateFirstAidGuidance(
 }
 
 /**
- * Transcribe audio file to text
+ * Transcribe audio file to text using DeepSeek
  * @param audioFilePath Path to the audio file
  * @returns Transcribed text
  */
-async function transcribeAudio(audioFilePath: string): Promise<string> {
+async function transcribeAudioWithDeepSeek(audioFilePath: string): Promise<string> {
   try {
-    const transcription = await openai.audio.transcriptions.create({
-      file: fs.createReadStream(audioFilePath),
-      model: "whisper-1",
-    });
+    const base64Audio = fs.readFileSync(audioFilePath).toString('base64');
     
-    return transcription.text;
+    const response = await axios.post(
+      `${DEEPSEEK_API_URL}/audio/transcriptions`,
+      {
+        file: base64Audio,
+        model: "deepseek-audio-transcribe",
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
+        }
+      }
+    );
+    
+    return response.data.text;
   } catch (error: any) {
-    console.error("Error transcribing audio:", error);
+    console.error("Error transcribing audio with DeepSeek:", error);
     return "";
   }
 }
 
 /**
  * Extract structured data from text when JSON parsing fails
- * @param text Response text from OpenAI
+ * @param text Response text from DeepSeek
  * @returns Structured assessment data
  */
 function extractStructuredDataFromText(text: string): AIAssessmentResult {

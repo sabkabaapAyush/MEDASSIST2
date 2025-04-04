@@ -150,6 +150,12 @@ export default function FirstAidGuidance({ guidanceData }: { guidanceData?: Guid
             <p className="mt-2 text-sm text-neutral-500 max-w-md mx-auto">
               Upload an image, describe your symptoms, or use voice recording to receive first aid guidance.
             </p>
+            <div className="mt-6 bg-blue-50 p-4 rounded-md inline-block mx-auto text-left">
+              <h4 className="text-sm font-medium text-blue-700">Multi-AI Provider Support</h4>
+              <p className="text-xs text-blue-600 mt-1">
+                This application will automatically switch between OpenAI and DeepSeek AI to ensure reliable service.
+              </p>
+            </div>
           </div>
         )}
         

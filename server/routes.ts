@@ -13,7 +13,7 @@ import {
   insertFirstAidGuidanceSchema,
   firstAidRequestSchema
 } from "@shared/schema";
-import { generateFirstAidGuidance } from "./services/openai-service";
+import { generateFirstAidGuidanceUnified } from "./services/ai-service";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -218,8 +218,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         patientId 
       });
       
-      // Use OpenAI to analyze the input and generate guidance
-      const aiResult = await generateFirstAidGuidance(
+      // Use AI service to analyze the input and generate guidance
+      const aiResult = await generateFirstAidGuidanceUnified(
         imageFiles,
         text,
         audioFilePath
@@ -268,8 +268,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.error("Error processing first aid request:", error);
       
-      // Check if it's an OpenAI API error
-      if (error?.message && typeof error.message === 'string' && error.message.includes('API service unavailable')) {
+      // Check if it's an AI service API error
+      if (error?.message && typeof error.message === 'string' && 
+          (error.message.includes('API service unavailable') || 
+           error.message.includes('All AI services are currently unavailable'))) {
         return res.status(503).json({ 
           message: "The AI service is temporarily unavailable. Please try again later.",
           apiUnavailable: true 
