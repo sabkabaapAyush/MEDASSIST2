@@ -16,10 +16,8 @@ export default function Header() {
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center md:hidden">
-              <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+              <div className="h-8 w-8 flex items-center justify-center">
+                <img src="/images/medassist-logo.svg" alt="MedAssist Logo" className="h-8 w-8" />
               </div>
               <span className="ml-2 text-lg font-bold text-neutral-900">MedAssist</span>
             </div>

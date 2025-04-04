@@ -47,8 +47,8 @@ export default function Sidebar() {
     <aside className="hidden md:flex md:flex-col md:w-64 bg-white border-r border-neutral-200">
       <div className="p-6">
         <div className="flex items-center">
-          <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-            <Info className="h-6 w-6 text-white" />
+          <div className="h-10 w-10 flex items-center justify-center">
+            <img src="/images/medassist-logo.svg" alt="MedAssist Logo" className="h-10 w-10" />
           </div>
           <span className="ml-3 text-xl font-bold text-neutral-900">MedAssist</span>
         </div>
