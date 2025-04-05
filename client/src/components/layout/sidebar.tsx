@@ -7,6 +7,7 @@ import {
   ClipboardList, 
   BookOpen, 
   Phone,
+  VideoIcon,
   Info
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -40,6 +41,11 @@ export default function Sidebar() {
       name: "Emergency Contact",
       path: "/emergency-contact",
       icon: <Phone className="h-5 w-5 mr-3" />
+    },
+    {
+      name: "Consultations",
+      path: "/consultations",
+      icon: <VideoIcon className="h-5 w-5 mr-3" />
     }
   ];
 

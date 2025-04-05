@@ -11,6 +11,7 @@ import PatientProfile from "@/pages/patient-profile";
 import MedicalRecords from "@/pages/medical-records";
 import FirstAidGuide from "@/pages/first-aid-guide";
 import EmergencyContact from "@/pages/emergency-contact";
+import Consultations from "@/pages/consultations";
 import NotFound from "@/pages/not-found";
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
               <Route path="/medical-records" component={MedicalRecords} />
               <Route path="/first-aid-guide" component={FirstAidGuide} />
               <Route path="/emergency-contact" component={EmergencyContact} />
+              <Route path="/consultations" component={Consultations} />
               <Route component={NotFound} />
             </Switch>
           </Layout>

@@ -2,7 +2,9 @@ import {
   users, type User, type InsertUser,
   patients, type Patient, type InsertPatient,
   medicalRecords, type MedicalRecord, type InsertMedicalRecord,
-  firstAidGuidance, type FirstAidGuidance, type InsertFirstAidGuidance 
+  firstAidGuidance, type FirstAidGuidance, type InsertFirstAidGuidance,
+  medicalProfessionals, type MedicalProfessional, type InsertMedicalProfessional,
+  consultations, type Consultation, type InsertConsultation
 } from "@shared/schema";
 
 export interface IStorage {
@@ -30,6 +32,24 @@ export interface IStorage {
   getFirstAidGuidance(id: number): Promise<FirstAidGuidance | undefined>;
   getFirstAidGuidanceByPatientId(patientId: number): Promise<FirstAidGuidance[]>;
   createFirstAidGuidance(guidance: InsertFirstAidGuidance): Promise<FirstAidGuidance>;
+  
+  // Medical Professional operations
+  getMedicalProfessional(id: number): Promise<MedicalProfessional | undefined>;
+  getMedicalProfessionalByLicenseNumber(licenseNumber: string): Promise<MedicalProfessional | undefined>;
+  getMedicalProfessionals(): Promise<MedicalProfessional[]>;
+  getMedicalProfessionalsBySpecialization(specialization: string): Promise<MedicalProfessional[]>;
+  createMedicalProfessional(professional: InsertMedicalProfessional): Promise<MedicalProfessional>;
+  updateMedicalProfessional(id: number, professional: Partial<InsertMedicalProfessional>): Promise<MedicalProfessional | undefined>;
+  deleteMedicalProfessional(id: number): Promise<boolean>;
+  
+  // Consultation operations
+  getConsultation(id: number): Promise<Consultation | undefined>;
+  getConsultationsByPatientId(patientId: number): Promise<Consultation[]>;
+  getConsultationsByProfessionalId(professionalId: number): Promise<Consultation[]>;
+  getConsultationsByStatus(status: string): Promise<Consultation[]>;
+  createConsultation(consultation: InsertConsultation): Promise<Consultation>;
+  updateConsultation(id: number, consultation: Partial<InsertConsultation>): Promise<Consultation | undefined>;
+  deleteConsultation(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -37,22 +57,30 @@ export class MemStorage implements IStorage {
   private patients: Map<number, Patient>;
   private medicalRecords: Map<number, MedicalRecord>;
   private firstAidGuidance: Map<number, FirstAidGuidance>;
+  private medicalProfessionals: Map<number, MedicalProfessional>;
+  private consultations: Map<number, Consultation>;
   
   private userCurrentId: number;
   private patientCurrentId: number;
   private medicalRecordCurrentId: number;
   private firstAidGuidanceCurrentId: number;
+  private medicalProfessionalCurrentId: number;
+  private consultationCurrentId: number;
 
   constructor() {
     this.users = new Map();
     this.patients = new Map();
     this.medicalRecords = new Map();
     this.firstAidGuidance = new Map();
+    this.medicalProfessionals = new Map();
+    this.consultations = new Map();
     
     this.userCurrentId = 1;
     this.patientCurrentId = 1;
     this.medicalRecordCurrentId = 1;
     this.firstAidGuidanceCurrentId = 1;
+    this.medicalProfessionalCurrentId = 1;
+    this.consultationCurrentId = 1;
 
     // Create some initial data
     this.createPatient({
@@ -95,6 +123,49 @@ export class MemStorage implements IStorage {
       status: "Resolved",
       images: []
     });
+    
+    // Add some sample medical professionals
+    this.createMedicalProfessional({
+      name: "Dr. Sarah Johnson",
+      specialization: "Emergency Medicine",
+      qualifications: "MD, ABEM Board Certified",
+      licenseNumber: "EM12345",
+      contact: "(555) 123-4567",
+      email: "sjohnson@medassist.example",
+      availability: "Mon-Fri: 9am-5pm",
+      bio: "Dr. Johnson has over 15 years of experience in emergency medicine, specializing in trauma care and acute medical conditions.",
+      profileImage: null,
+      rating: 5,
+      verified: true
+    });
+    
+    this.createMedicalProfessional({
+      name: "Dr. Michael Chen",
+      specialization: "Family Medicine",
+      qualifications: "MD, ABFM Board Certified",
+      licenseNumber: "FM67890",
+      contact: "(555) 987-6543",
+      email: "mchen@medassist.example",
+      availability: "Mon-Wed, Fri: 8am-4pm",
+      bio: "Dr. Chen provides comprehensive primary care for patients of all ages, with special interest in preventive medicine and chronic disease management.",
+      profileImage: null,
+      rating: 4,
+      verified: true
+    });
+    
+    this.createMedicalProfessional({
+      name: "Dr. Alicia Rodriguez",
+      specialization: "Pediatrics",
+      qualifications: "MD, ABP Board Certified",
+      licenseNumber: "PD23456",
+      contact: "(555) 456-7890",
+      email: "arodriguez@medassist.example",
+      availability: "Tue-Sat: 10am-6pm",
+      bio: "Dr. Rodriguez specializes in pediatric care with a focus on childhood development and adolescent health issues.",
+      profileImage: null,
+      rating: 5,
+      verified: true
+    });
   }
 
   // User methods
@@ -132,7 +203,16 @@ export class MemStorage implements IStorage {
 
   async createPatient(insertPatient: InsertPatient): Promise<Patient> {
     const id = this.patientCurrentId++;
-    const patient: Patient = { ...insertPatient, id };
+    const patient: Patient = { 
+      ...insertPatient, 
+      id,
+      bloodType: insertPatient.bloodType || null,
+      allergies: insertPatient.allergies || null,
+      conditions: insertPatient.conditions || null,
+      medications: insertPatient.medications || null,
+      emergencyContact: insertPatient.emergencyContact || null,
+      emergencyPhone: insertPatient.emergencyPhone || null
+    };
     this.patients.set(id, patient);
     return patient;
   }
@@ -166,7 +246,8 @@ export class MemStorage implements IStorage {
     const record: MedicalRecord = { 
       ...insertRecord, 
       id, 
-      date: new Date() 
+      date: new Date(),
+      images: insertRecord.images || []
     };
     this.medicalRecords.set(id, record);
     return record;
@@ -201,10 +282,116 @@ export class MemStorage implements IStorage {
     const guidance: FirstAidGuidance = { 
       ...insertGuidance, 
       id, 
-      date: new Date() 
+      date: new Date(),
+      steps: insertGuidance.steps || [],
+      warnings: insertGuidance.warnings || []
     };
     this.firstAidGuidance.set(id, guidance);
     return guidance;
+  }
+
+  // Medical Professional methods
+  async getMedicalProfessional(id: number): Promise<MedicalProfessional | undefined> {
+    return this.medicalProfessionals.get(id);
+  }
+
+  async getMedicalProfessionalByLicenseNumber(licenseNumber: string): Promise<MedicalProfessional | undefined> {
+    return Array.from(this.medicalProfessionals.values()).find(
+      (professional) => professional.licenseNumber === licenseNumber
+    );
+  }
+
+  async getMedicalProfessionals(): Promise<MedicalProfessional[]> {
+    return Array.from(this.medicalProfessionals.values());
+  }
+
+  async getMedicalProfessionalsBySpecialization(specialization: string): Promise<MedicalProfessional[]> {
+    return Array.from(this.medicalProfessionals.values())
+      .filter(professional => professional.specialization === specialization);
+  }
+
+  async createMedicalProfessional(insertProfessional: InsertMedicalProfessional): Promise<MedicalProfessional> {
+    const id = this.medicalProfessionalCurrentId++;
+    const professional: MedicalProfessional = {
+      ...insertProfessional,
+      id,
+      profileImage: insertProfessional.profileImage || null,
+      bio: insertProfessional.bio || null,
+      rating: insertProfessional.rating || null,
+      verified: insertProfessional.verified ?? false
+    };
+    this.medicalProfessionals.set(id, professional);
+    return professional;
+  }
+
+  async updateMedicalProfessional(id: number, updateProfessional: Partial<InsertMedicalProfessional>): Promise<MedicalProfessional | undefined> {
+    const professional = this.medicalProfessionals.get(id);
+    if (!professional) return undefined;
+    
+    const updatedProfessional = { ...professional, ...updateProfessional };
+    this.medicalProfessionals.set(id, updatedProfessional);
+    return updatedProfessional;
+  }
+
+  async deleteMedicalProfessional(id: number): Promise<boolean> {
+    return this.medicalProfessionals.delete(id);
+  }
+
+  // Consultation methods
+  async getConsultation(id: number): Promise<Consultation | undefined> {
+    return this.consultations.get(id);
+  }
+
+  async getConsultationsByPatientId(patientId: number): Promise<Consultation[]> {
+    return Array.from(this.consultations.values())
+      .filter(consultation => consultation.patientId === patientId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getConsultationsByProfessionalId(professionalId: number): Promise<Consultation[]> {
+    return Array.from(this.consultations.values())
+      .filter(consultation => consultation.professionalId === professionalId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getConsultationsByStatus(status: string): Promise<Consultation[]> {
+    return Array.from(this.consultations.values())
+      .filter(consultation => consultation.status === status)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async createConsultation(insertConsultation: InsertConsultation): Promise<Consultation> {
+    const id = this.consultationCurrentId++;
+    const now = new Date();
+    const consultation: Consultation = {
+      ...insertConsultation,
+      id,
+      relatedGuidanceId: insertConsultation.relatedGuidanceId || null,
+      scheduledDate: insertConsultation.scheduledDate || null,
+      patientNotes: insertConsultation.patientNotes || null,
+      professionalNotes: insertConsultation.professionalNotes || null,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.consultations.set(id, consultation);
+    return consultation;
+  }
+
+  async updateConsultation(id: number, updateConsultation: Partial<InsertConsultation>): Promise<Consultation | undefined> {
+    const consultation = this.consultations.get(id);
+    if (!consultation) return undefined;
+    
+    const updatedConsultation = { 
+      ...consultation, 
+      ...updateConsultation,
+      updatedAt: new Date()
+    };
+    this.consultations.set(id, updatedConsultation);
+    return updatedConsultation;
+  }
+
+  async deleteConsultation(id: number): Promise<boolean> {
+    return this.consultations.delete(id);
   }
 }
 

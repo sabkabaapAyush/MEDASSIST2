@@ -11,6 +11,8 @@ import {
   insertPatientSchema, 
   insertMedicalRecordSchema, 
   insertFirstAidGuidanceSchema,
+  insertMedicalProfessionalSchema,
+  insertConsultationSchema,
   firstAidRequestSchema
 } from "@shared/schema";
 import { generateFirstAidGuidanceUnified } from "./services/ai-service";
@@ -305,6 +307,193 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(guidance);
     } catch (error) {
       res.status(500).json({ message: "Error fetching first aid guidance" });
+    }
+  });
+
+  // Medical Professionals routes
+  apiRouter.get("/medical-professionals", async (req: Request, res: Response) => {
+    try {
+      // Check for specialization query param
+      const specialization = req.query.specialization as string | undefined;
+      
+      let professionals;
+      if (specialization) {
+        professionals = await storage.getMedicalProfessionalsBySpecialization(specialization);
+      } else {
+        professionals = await storage.getMedicalProfessionals();
+      }
+      
+      res.json(professionals);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching medical professionals" });
+    }
+  });
+
+  apiRouter.get("/medical-professionals/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const professional = await storage.getMedicalProfessional(id);
+      
+      if (!professional) {
+        return res.status(404).json({ message: "Medical professional not found" });
+      }
+      
+      res.json(professional);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching medical professional" });
+    }
+  });
+
+  apiRouter.post("/medical-professionals", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertMedicalProfessionalSchema.parse(req.body);
+      const professional = await storage.createMedicalProfessional(validatedData);
+      res.status(201).json(professional);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid medical professional data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Error creating medical professional" });
+    }
+  });
+
+  apiRouter.put("/medical-professionals/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertMedicalProfessionalSchema.partial().parse(req.body);
+      const updatedProfessional = await storage.updateMedicalProfessional(id, validatedData);
+      
+      if (!updatedProfessional) {
+        return res.status(404).json({ message: "Medical professional not found" });
+      }
+      
+      res.json(updatedProfessional);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid medical professional data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Error updating medical professional" });
+    }
+  });
+
+  apiRouter.delete("/medical-professionals/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteMedicalProfessional(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Medical professional not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      res.status(500).json({ message: "Error deleting medical professional" });
+    }
+  });
+
+  // Consultation routes
+  apiRouter.get("/consultations", async (req: Request, res: Response) => {
+    try {
+      // Check for filter query params
+      const patientId = req.query.patientId ? parseInt(req.query.patientId as string) : undefined;
+      const professionalId = req.query.professionalId ? parseInt(req.query.professionalId as string) : undefined;
+      const status = req.query.status as string | undefined;
+      
+      let consultations;
+      if (patientId) {
+        consultations = await storage.getConsultationsByPatientId(patientId);
+      } else if (professionalId) {
+        consultations = await storage.getConsultationsByProfessionalId(professionalId);
+      } else if (status) {
+        consultations = await storage.getConsultationsByStatus(status);
+      } else {
+        // Return a sample of recent consultations if no filter is provided
+        const allConsultationsByDate = Array.from(new Set([
+          ...(await storage.getConsultationsByStatus('scheduled')),
+          ...(await storage.getConsultationsByStatus('requested')),
+          ...(await storage.getConsultationsByStatus('completed')).slice(0, 10)
+        ]));
+        consultations = allConsultationsByDate;
+      }
+      
+      res.json(consultations);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching consultations" });
+    }
+  });
+
+  apiRouter.get("/consultations/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const consultation = await storage.getConsultation(id);
+      
+      if (!consultation) {
+        return res.status(404).json({ message: "Consultation not found" });
+      }
+      
+      res.json(consultation);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching consultation" });
+    }
+  });
+
+  apiRouter.post("/consultations", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertConsultationSchema.parse(req.body);
+      
+      // Verify that patient and professional exist
+      const patient = await storage.getPatient(validatedData.patientId);
+      const professional = await storage.getMedicalProfessional(validatedData.professionalId);
+      
+      if (!patient) {
+        return res.status(404).json({ message: "Patient not found" });
+      }
+      
+      if (!professional) {
+        return res.status(404).json({ message: "Medical professional not found" });
+      }
+      
+      const consultation = await storage.createConsultation(validatedData);
+      res.status(201).json(consultation);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid consultation data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Error creating consultation" });
+    }
+  });
+
+  apiRouter.put("/consultations/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertConsultationSchema.partial().parse(req.body);
+      const updatedConsultation = await storage.updateConsultation(id, validatedData);
+      
+      if (!updatedConsultation) {
+        return res.status(404).json({ message: "Consultation not found" });
+      }
+      
+      res.json(updatedConsultation);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid consultation data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Error updating consultation" });
+    }
+  });
+
+  apiRouter.delete("/consultations/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteConsultation(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Consultation not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      res.status(500).json({ message: "Error deleting consultation" });
     }
   });
 

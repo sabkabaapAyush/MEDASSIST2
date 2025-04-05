@@ -42,6 +42,36 @@ export const firstAidGuidance = pgTable("first_aid_guidance", {
   date: timestamp("date").notNull().defaultNow(),
 });
 
+export const medicalProfessionals = pgTable("medical_professionals", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  specialization: text("specialization").notNull(),
+  qualifications: text("qualifications").notNull(),
+  licenseNumber: text("license_number").notNull().unique(),
+  contact: text("contact").notNull(),
+  email: text("email").notNull(),
+  availability: text("availability").notNull(),
+  bio: text("bio"),
+  profileImage: text("profile_image"),
+  rating: integer("rating"), // 1-5 stars
+  verified: boolean("verified").default(false),
+});
+
+export const consultations = pgTable("consultations", {
+  id: serial("id").primaryKey(),
+  patientId: integer("patient_id").notNull(),
+  professionalId: integer("professional_id").notNull(),
+  relatedGuidanceId: integer("related_guidance_id"),
+  status: text("status").notNull(), // pending, scheduled, completed, cancelled
+  scheduledDate: timestamp("scheduled_date"),
+  request: text("request").notNull(),
+  patientNotes: text("patient_notes"),
+  professionalNotes: text("professional_notes"),
+  consultationType: text("consultation_type").notNull(), // video, chat, in-person
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -77,6 +107,32 @@ export const insertFirstAidGuidanceSchema = createInsertSchema(firstAidGuidance)
   warnings: true,
 });
 
+export const insertMedicalProfessionalSchema = createInsertSchema(medicalProfessionals).pick({
+  name: true,
+  specialization: true,
+  qualifications: true,
+  licenseNumber: true,
+  contact: true,
+  email: true,
+  availability: true,
+  bio: true,
+  profileImage: true,
+  rating: true,
+  verified: true,
+});
+
+export const insertConsultationSchema = createInsertSchema(consultations).pick({
+  patientId: true,
+  professionalId: true,
+  relatedGuidanceId: true,
+  status: true,
+  scheduledDate: true,
+  request: true,
+  patientNotes: true,
+  professionalNotes: true,
+  consultationType: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -89,6 +145,12 @@ export type MedicalRecord = typeof medicalRecords.$inferSelect;
 
 export type InsertFirstAidGuidance = z.infer<typeof insertFirstAidGuidanceSchema>;
 export type FirstAidGuidance = typeof firstAidGuidance.$inferSelect;
+
+export type InsertMedicalProfessional = z.infer<typeof insertMedicalProfessionalSchema>;
+export type MedicalProfessional = typeof medicalProfessionals.$inferSelect;
+
+export type InsertConsultation = z.infer<typeof insertConsultationSchema>;
+export type Consultation = typeof consultations.$inferSelect;
 
 // Extended input types for API routes
 export const imageUploadSchema = z.object({
