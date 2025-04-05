@@ -26,12 +26,21 @@ export async function generateFirstAidGuidanceWithOpenAI(
       type: "text",
       text: `You are a medical first aid assistant. 
       Analyze the provided information (images, text description, and/or audio transcription) 
-      and provide first aid guidance. Structure your response as a JSON object with the following properties:
+      and provide first aid guidance with severity assessment. Structure your response as a JSON object with the following properties:
       {
         "assessment": "Brief description of the injury or condition based on the provided inputs",
         "steps": ["Step 1 of first aid treatment", "Step 2", "..."],
-        "warnings": ["Important warning or caution", "..."]
-      }`
+        "warnings": ["Important warning or caution", "..."],
+        "severity": {
+          "level": "minor" | "requires_attention" | "emergency",
+          "description": "Explanation of why this severity level was assigned"
+        }
+      }
+      
+      For severity levels, use these guidelines:
+      - "minor": Injuries that can be safely treated at home (cuts, scrapes, minor burns, etc.)
+      - "requires_attention": Conditions that need medical care soon but are not immediately life-threatening
+      - "emergency": Conditions requiring immediate emergency medical services (severe bleeding, loss of consciousness, chest pain, etc.)`
     });
     
     // Add user text input as context
@@ -127,7 +136,11 @@ function extractStructuredDataFromText(text: string): AIAssessmentResult {
   const result: AIAssessmentResult = {
     assessment: "Unable to parse response properly. Please try again.",
     steps: [],
-    warnings: ["The system encountered an issue processing the response."]
+    warnings: ["The system encountered an issue processing the response."],
+    severity: {
+      level: "requires_attention",
+      description: "Unable to determine severity from the response. Seeking medical advice is recommended as a precaution."
+    }
   };
 
   // Extract assessment (look for a paragraph that seems to be describing the condition)
@@ -153,7 +166,7 @@ function extractStructuredDataFromText(text: string): AIAssessmentResult {
   }
 
   // Extract warnings
-  const warningsMatch = text.match(/warnings[:\s]+([\s\S]+?)(?=\n\n|$)/i);
+  const warningsMatch = text.match(/warnings[:\s]+([\s\S]+?)(?=\n\n|severity|$)/i);
   if (warningsMatch && warningsMatch[1]) {
     const warningsText = warningsMatch[1].trim();
     const warnings = warningsText.split(/\n+/).map(warning => {
@@ -163,6 +176,37 @@ function extractStructuredDataFromText(text: string): AIAssessmentResult {
     if (warnings.length > 0) {
       result.warnings = warnings;
     }
+  }
+
+  // Extract severity
+  const severityMatch = text.match(/severity[:\s]+([^\n]+)/i) || 
+                        text.match(/level[:\s]+([^\n]+)/i);
+  if (severityMatch && severityMatch[1]) {
+    const severityText = severityMatch[1].toLowerCase().trim();
+    
+    if (severityText.includes("minor")) {
+      result.severity = {
+        level: "minor",
+        description: "This condition can be safely treated at home with basic first aid."
+      };
+    } else if (severityText.includes("requires_attention") || severityText.includes("requires attention") || severityText.includes("medical attention")) {
+      result.severity = {
+        level: "requires_attention",
+        description: "This condition needs medical attention, but is not immediately life-threatening."
+      };
+    } else if (severityText.includes("emergency")) {
+      result.severity = {
+        level: "emergency",
+        description: "This is a medical emergency requiring immediate professional medical care."
+      };
+    }
+  }
+
+  // Try to extract severity description
+  const severityDescMatch = text.match(/severity[^:]*description[:\s]+([^\n]+)/i) || 
+                            text.match(/description[:\s]+([^\n]+)/i);
+  if (severityDescMatch && severityDescMatch[1] && result.severity) {
+    result.severity.description = severityDescMatch[1].trim();
   }
 
   return result;

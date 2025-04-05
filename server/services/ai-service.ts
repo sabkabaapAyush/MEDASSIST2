@@ -7,6 +7,10 @@ export interface AIAssessmentResult {
   assessment: string;
   steps: string[];
   warnings: string[];
+  severity?: {
+    level: "minor" | "requires_attention" | "emergency";
+    description: string;
+  };
 }
 
 /**

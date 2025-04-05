@@ -40,13 +40,23 @@ export async function generateFirstAidGuidanceWithDeepSeek(
         1. A clear assessment of the situation
         2. Step-by-step first aid instructions
         3. Warning signs that would indicate the need to seek professional medical attention
+        4. Severity assessment of the condition
 
         Format your response as a JSON object with the following structure:
         {
           "assessment": "your assessment of the situation",
           "steps": ["step 1", "step 2", "step 3", ...],
-          "warnings": ["warning 1", "warning 2", "warning 3", ...]
-        }`
+          "warnings": ["warning 1", "warning 2", "warning 3", ...],
+          "severity": {
+            "level": "minor" | "requires_attention" | "emergency",
+            "description": "explanation of why this severity level was assigned"
+          }
+        }
+        
+        For severity levels:
+        - "minor": Injuries that can be safely treated at home (cuts, scrapes, minor burns, etc.)
+        - "requires_attention": Conditions that need medical care soon but are not immediately life-threatening
+        - "emergency": Conditions requiring immediate emergency medical services (severe bleeding, loss of consciousness, chest pain, etc.)`
       }
     ];
     
@@ -109,7 +119,11 @@ export async function generateFirstAidGuidanceWithDeepSeek(
       return {
         assessment: parsedResponse.assessment || "Unable to provide assessment with given information.",
         steps: parsedResponse.steps || [],
-        warnings: parsedResponse.warnings || []
+        warnings: parsedResponse.warnings || [],
+        severity: parsedResponse.severity || {
+          level: "requires_attention",
+          description: "Unable to determine severity level from provided information. Seeking medical advice is recommended as a precaution."
+        }
       };
     } catch (parseError) {
       console.error("Error parsing JSON response:", parseError);
@@ -169,7 +183,11 @@ function extractStructuredDataFromText(text: string): AIAssessmentResult {
   const result: AIAssessmentResult = {
     assessment: "",
     steps: [],
-    warnings: []
+    warnings: [],
+    severity: {
+      level: "requires_attention",
+      description: "Unable to determine severity from the response. Seeking medical advice is recommended as a precaution."
+    }
   };
   
   // Try to extract assessment section
@@ -190,13 +208,44 @@ function extractStructuredDataFromText(text: string): AIAssessmentResult {
   }
   
   // Try to extract warnings
-  const warningsRegex = new RegExp("warnings:?\\s*(.*?)(?=$)", "i");
+  const warningsRegex = new RegExp("warnings:?\\s*(.*?)(?=severity:|$)", "i");
   const warningsMatch = text.match(warningsRegex);
   if (warningsMatch && warningsMatch[1]) {
     result.warnings = warningsMatch[1]
       .split(/\d+\.\s+|\*\s+|-\s+/)
       .filter(Boolean)
       .map(warning => warning.trim());
+  }
+  
+  // Try to extract severity level
+  const severityLevelRegex = new RegExp("severity:?[^:]*level:?\\s*\"?([^\"\\n]+)\"?", "i");
+  const severityLevelMatch = text.match(severityLevelRegex);
+  if (severityLevelMatch && severityLevelMatch[1]) {
+    const levelText = severityLevelMatch[1].toLowerCase().trim();
+    
+    if (levelText.includes("minor")) {
+      result.severity = {
+        level: "minor",
+        description: result.severity?.description || "This condition can be safely treated at home with basic first aid."
+      };
+    } else if (levelText.includes("requires_attention") || levelText.includes("requires attention") || levelText.includes("attention")) {
+      result.severity = {
+        level: "requires_attention",
+        description: result.severity?.description || "This condition needs medical attention, but is not immediately life-threatening."
+      };
+    } else if (levelText.includes("emergency")) {
+      result.severity = {
+        level: "emergency",
+        description: result.severity?.description || "This is a medical emergency requiring immediate professional medical care."
+      };
+    }
+  }
+  
+  // Try to extract severity description
+  const severityDescRegex = new RegExp("severity:?[^:]*description:?\\s*\"?([^\"\\n]+)\"?", "i");
+  const severityDescMatch = text.match(severityDescRegex);
+  if (severityDescMatch && severityDescMatch[1] && result.severity) {
+    result.severity.description = severityDescMatch[1].trim();
   }
   
   return result;

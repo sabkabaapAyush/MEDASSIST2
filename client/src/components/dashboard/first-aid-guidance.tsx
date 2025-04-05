@@ -7,7 +7,9 @@ import {
   FileText, 
   Save, 
   Printer,
-  AlertTriangle
+  AlertTriangle,
+  AlertOctagon,
+  Activity
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -20,6 +22,10 @@ interface GuidanceData {
   warnings: string[];
   savedToRecords?: boolean;
   guidanceId?: number;
+  severity?: {
+    level: "minor" | "requires_attention" | "emergency";
+    description: string;
+  };
 }
 
 export default function FirstAidGuidance({ guidanceData }: { guidanceData?: GuidanceData }) {
@@ -95,6 +101,9 @@ export default function FirstAidGuidance({ guidanceData }: { guidanceData?: Guid
             ol, ul { margin-bottom: 20px; }
             .warning { background-color: #FEF3C7; border-left: 4px solid #F59E0B; padding: 10px; }
             .assessment { background-color: #DBEAFE; border-left: 4px solid #2563EB; padding: 10px; margin-bottom: 20px; }
+            .severity-minor { background-color: #ECFDF5; border-left: 4px solid #10B981; padding: 10px; margin-bottom: 20px; }
+            .severity-attention { background-color: #FEF3C7; border-left: 4px solid #D97706; padding: 10px; margin-bottom: 20px; }
+            .severity-emergency { background-color: #FEE2E2; border-left: 4px solid #EF4444; padding: 10px; margin-bottom: 20px; }
             footer { margin-top: 30px; font-size: 12px; color: #6B7280; border-top: 1px solid #E5E7EB; padding-top: 10px; }
           </style>
         </head>
@@ -104,6 +113,25 @@ export default function FirstAidGuidance({ guidanceData }: { guidanceData?: Guid
             <h2>Assessment</h2>
             <p>${guidanceData.assessment}</p>
           </div>
+          
+          ${guidanceData.severity ? `
+          <div class="${
+            guidanceData.severity.level === "minor" 
+              ? "severity-minor" 
+              : guidanceData.severity.level === "requires_attention" 
+                ? "severity-attention" 
+                : "severity-emergency"
+          }">
+            <h2>Severity: ${
+              guidanceData.severity.level === "minor" 
+                ? "Minor" 
+                : guidanceData.severity.level === "requires_attention" 
+                  ? "Requires Medical Attention" 
+                  : "Emergency"
+            }</h2>
+            <p>${guidanceData.severity.description}</p>
+          </div>
+          ` : ''}
           
           <h2>Recommended First Aid Steps:</h2>
           <ol>
@@ -186,6 +214,53 @@ export default function FirstAidGuidance({ guidanceData }: { guidanceData?: Guid
                 </div>
               </div>
             </div>
+            
+            {/* Severity indicator */}
+            {guidanceData.severity && (
+              <div className={`mb-6 p-4 rounded border-l-4 flex ${
+                guidanceData.severity.level === "minor" 
+                  ? "bg-green-50 border-green-500" 
+                  : guidanceData.severity.level === "requires_attention"
+                    ? "bg-amber-50 border-amber-500"
+                    : "bg-red-50 border-red-500"
+              }`}>
+                <div className="flex-shrink-0">
+                  {guidanceData.severity.level === "minor" && (
+                    <Activity className="h-5 w-5 text-green-500" />
+                  )}
+                  {guidanceData.severity.level === "requires_attention" && (
+                    <AlertTriangle className="h-5 w-5 text-amber-500" />
+                  )}
+                  {guidanceData.severity.level === "emergency" && (
+                    <AlertOctagon className="h-5 w-5 text-red-500" />
+                  )}
+                </div>
+                <div className="ml-3">
+                  <h3 className={`text-sm font-medium ${
+                    guidanceData.severity.level === "minor" 
+                      ? "text-green-700" 
+                      : guidanceData.severity.level === "requires_attention"
+                        ? "text-amber-700"
+                        : "text-red-700"
+                  }`}>
+                    Severity: {guidanceData.severity.level === "minor" 
+                      ? "Minor" 
+                      : guidanceData.severity.level === "requires_attention"
+                        ? "Requires Medical Attention"
+                        : "Emergency"}
+                  </h3>
+                  <div className={`mt-2 text-sm ${
+                    guidanceData.severity.level === "minor" 
+                      ? "text-green-600" 
+                      : guidanceData.severity.level === "requires_attention"
+                        ? "text-amber-600"
+                        : "text-red-600"
+                  }`}>
+                    <p>{guidanceData.severity.description}</p>
+                  </div>
+                </div>
+              </div>
+            )}
             
             <div className="space-y-4">
               <h3 className="font-medium text-neutral-900">Recommended First Aid Steps:</h3>
