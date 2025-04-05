@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { usePatient } from "@/context/patient-context";
@@ -9,12 +9,23 @@ import {
   Printer,
   AlertTriangle,
   AlertOctagon,
-  Activity
+  Activity,
+  Ambulance,
+  PhoneCall,
+  MapPin
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
 
 interface GuidanceData {
   assessment: string;
@@ -32,6 +43,19 @@ export default function FirstAidGuidance({ guidanceData }: { guidanceData?: Guid
   const { currentPatient } = usePatient();
   const { toast } = useToast();
   const [isSaved, setIsSaved] = useState(guidanceData?.savedToRecords || false);
+  const [showEmergencyDialog, setShowEmergencyDialog] = useState(false);
+  
+  // Check for emergency cases and show dialog
+  useEffect(() => {
+    if (guidanceData?.severity?.level === "emergency") {
+      setShowEmergencyDialog(true);
+    }
+  }, [guidanceData]);
+  
+  // Redirect to nearby hospitals section
+  const redirectToNearbyHospitals = () => {
+    window.location.href = "/emergency-contact?tab=nearby-hospitals";
+  };
   
   const saveToRecordsMutation = useMutation({
     mutationFn: async () => {
@@ -211,13 +235,72 @@ export default function FirstAidGuidance({ guidanceData }: { guidanceData?: Guid
   };
 
   return (
-    <Card className="mt-6">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold text-neutral-900">First Aid Guidance</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {/* Placeholder before assessment */}
-        {!guidanceData && (
+    <>
+      {/* Emergency Alert Dialog */}
+      <Dialog open={showEmergencyDialog} onOpenChange={setShowEmergencyDialog}>
+        <DialogContent className="bg-white border-2 border-red-500 max-w-md mx-auto">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 text-xl flex items-center">
+              <AlertOctagon className="h-6 w-6 mr-2" />
+              Emergency Medical Situation
+            </DialogTitle>
+            <DialogDescription className="text-gray-700 pt-2">
+              This condition requires immediate medical attention. Would you like to find nearby hospitals?
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start">
+              <Ambulance className="h-5 w-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" />
+              <p className="text-sm text-red-700">
+                For serious emergencies, please call emergency services immediately at <strong>911</strong>
+              </p>
+            </div>
+            
+            {guidanceData?.severity?.description && (
+              <div className="text-sm text-gray-700 mb-2">
+                <p className="font-medium mb-1">Emergency details:</p>
+                <p>{guidanceData.severity.description}</p>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter className="flex flex-col sm:flex-row gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowEmergencyDialog(false)} 
+              className="sm:w-auto w-full"
+            >
+              Continue to First Aid
+            </Button>
+            <Button 
+              className="bg-red-600 hover:bg-red-700 text-white sm:w-auto w-full flex items-center" 
+              onClick={redirectToNearbyHospitals}
+            >
+              <MapPin className="h-4 w-4 mr-2" />
+              Find Nearby Hospitals
+            </Button>
+            <Button
+              variant="outline"
+              className="bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300 sm:w-auto w-full flex items-center"
+              asChild
+            >
+              <a href="tel:911">
+                <PhoneCall className="h-4 w-4 mr-2" />
+                Call 911
+              </a>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-neutral-900">First Aid Guidance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* Placeholder before assessment */}
+          {!guidanceData && (
           <div className="text-center py-8">
             <FileText className="h-12 w-12 mx-auto text-neutral-400" />
             <h3 className="mt-4 text-neutral-700 font-medium">Waiting for your input</h3>
@@ -372,5 +455,6 @@ export default function FirstAidGuidance({ guidanceData }: { guidanceData?: Guid
         )}
       </CardContent>
     </Card>
+    </>
   );
 }
