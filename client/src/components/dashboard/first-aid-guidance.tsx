@@ -101,9 +101,54 @@ export default function FirstAidGuidance({ guidanceData }: { guidanceData?: Guid
             ol, ul { margin-bottom: 20px; }
             .warning { background-color: #FEF3C7; border-left: 4px solid #F59E0B; padding: 10px; }
             .assessment { background-color: #DBEAFE; border-left: 4px solid #2563EB; padding: 10px; margin-bottom: 20px; }
-            .severity-minor { background-color: #ECFDF5; border-left: 4px solid #10B981; padding: 10px; margin-bottom: 20px; }
-            .severity-attention { background-color: #FEF3C7; border-left: 4px solid #D97706; padding: 10px; margin-bottom: 20px; }
-            .severity-emergency { background-color: #FEE2E2; border-left: 4px solid #EF4444; padding: 10px; margin-bottom: 20px; }
+            
+            .severity-box { 
+              padding: 15px; 
+              margin-bottom: 25px; 
+              border-radius: 8px;
+              border-width: 2px;
+              box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            }
+            .severity-minor { 
+              background-color: #ECFDF5; 
+              border: 2px solid #10B981; 
+            }
+            .severity-attention { 
+              background-color: #FEF3C7; 
+              border: 2px solid #D97706;  
+            }
+            .severity-emergency { 
+              background-color: #FEE2E2; 
+              border: 2px solid #EF4444; 
+            }
+            
+            .severity-title {
+              font-size: 18px;
+              font-weight: bold;
+              margin-bottom: 10px;
+            }
+            .severity-minor .severity-title { color: #10B981; }
+            .severity-attention .severity-title { color: #D97706; }
+            .severity-emergency .severity-title { color: #EF4444; }
+            
+            .severity-description {
+              padding: 10px;
+              border-radius: 5px;
+            }
+            .severity-minor .severity-description { background-color: #D1FAE5; color: #065F46; }
+            .severity-attention .severity-description { background-color: #FEF3C7; color: #92400E; }
+            .severity-emergency .severity-description { background-color: #FEE2E2; color: #B91C1C; }
+            
+            .emergency-badge {
+              background-color: #EF4444;
+              color: white;
+              padding: 5px 10px;
+              border-radius: 20px;
+              font-weight: bold;
+              display: inline-block;
+              margin-bottom: 10px;
+            }
+            
             footer { margin-top: 30px; font-size: 12px; color: #6B7280; border-top: 1px solid #E5E7EB; padding-top: 10px; }
           </style>
         </head>
@@ -115,21 +160,22 @@ export default function FirstAidGuidance({ guidanceData }: { guidanceData?: Guid
           </div>
           
           ${guidanceData.severity ? `
-          <div class="${
+          <div class="severity-box ${
             guidanceData.severity.level === "minor" 
               ? "severity-minor" 
               : guidanceData.severity.level === "requires_attention" 
                 ? "severity-attention" 
                 : "severity-emergency"
           }">
-            <h2>Severity: ${
+            ${guidanceData.severity.level === "emergency" ? '<div class="emergency-badge">SEEK MEDICAL HELP NOW</div>' : ''}
+            <div class="severity-title">Severity: ${
               guidanceData.severity.level === "minor" 
                 ? "Minor" 
                 : guidanceData.severity.level === "requires_attention" 
                   ? "Requires Medical Attention" 
-                  : "Emergency"
-            }</h2>
-            <p>${guidanceData.severity.description}</p>
+                  : "EMERGENCY"
+            }</div>
+            <div class="severity-description">${guidanceData.severity.description}</div>
           </div>
           ` : ''}
           
@@ -215,49 +261,65 @@ export default function FirstAidGuidance({ guidanceData }: { guidanceData?: Guid
               </div>
             </div>
             
-            {/* Severity indicator */}
+            {/* Severity indicator - More Prominent */}
             {guidanceData.severity && (
-              <div className={`mb-6 p-4 rounded border-l-4 flex ${
+              <div className={`mb-6 p-5 rounded-lg shadow-md ${
                 guidanceData.severity.level === "minor" 
-                  ? "bg-green-50 border-green-500" 
+                  ? "bg-green-100 border-2 border-green-500" 
                   : guidanceData.severity.level === "requires_attention"
-                    ? "bg-amber-50 border-amber-500"
-                    : "bg-red-50 border-red-500"
+                    ? "bg-amber-100 border-2 border-amber-500"
+                    : "bg-red-100 border-2 border-red-500"
               }`}>
-                <div className="flex-shrink-0">
-                  {guidanceData.severity.level === "minor" && (
-                    <Activity className="h-5 w-5 text-green-500" />
-                  )}
-                  {guidanceData.severity.level === "requires_attention" && (
-                    <AlertTriangle className="h-5 w-5 text-amber-500" />
-                  )}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center">
+                    <div className={`rounded-full p-2 mr-3 ${
+                      guidanceData.severity.level === "minor" 
+                        ? "bg-green-200" 
+                        : guidanceData.severity.level === "requires_attention"
+                          ? "bg-amber-200"
+                          : "bg-red-200"
+                    }`}>
+                      {guidanceData.severity.level === "minor" && (
+                        <Activity className="h-7 w-7 text-green-600" />
+                      )}
+                      {guidanceData.severity.level === "requires_attention" && (
+                        <AlertTriangle className="h-7 w-7 text-amber-600" />
+                      )}
+                      {guidanceData.severity.level === "emergency" && (
+                        <AlertOctagon className="h-7 w-7 text-red-600" />
+                      )}
+                    </div>
+                    <h3 className={`text-lg font-bold ${
+                      guidanceData.severity.level === "minor" 
+                        ? "text-green-700" 
+                        : guidanceData.severity.level === "requires_attention"
+                          ? "text-amber-700"
+                          : "text-red-700"
+                    }`}>
+                      Severity: {guidanceData.severity.level === "minor" 
+                        ? "Minor" 
+                        : guidanceData.severity.level === "requires_attention"
+                          ? "Requires Medical Attention"
+                          : "EMERGENCY"}
+                    </h3>
+                  </div>
+                  
+                  {/* Emergency action badge */}
                   {guidanceData.severity.level === "emergency" && (
-                    <AlertOctagon className="h-5 w-5 text-red-500" />
+                    <span className="animate-pulse bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+                      Seek Medical Help Now
+                    </span>
                   )}
                 </div>
-                <div className="ml-3">
-                  <h3 className={`text-sm font-medium ${
-                    guidanceData.severity.level === "minor" 
-                      ? "text-green-700" 
-                      : guidanceData.severity.level === "requires_attention"
-                        ? "text-amber-700"
-                        : "text-red-700"
-                  }`}>
-                    Severity: {guidanceData.severity.level === "minor" 
-                      ? "Minor" 
-                      : guidanceData.severity.level === "requires_attention"
-                        ? "Requires Medical Attention"
-                        : "Emergency"}
-                  </h3>
-                  <div className={`mt-2 text-sm ${
-                    guidanceData.severity.level === "minor" 
-                      ? "text-green-600" 
-                      : guidanceData.severity.level === "requires_attention"
-                        ? "text-amber-600"
-                        : "text-red-600"
-                  }`}>
-                    <p>{guidanceData.severity.description}</p>
-                  </div>
+                
+                <div className={`mt-2 p-3 rounded-md ${
+                  guidanceData.severity.level === "minor" 
+                    ? "bg-green-50 text-green-800" 
+                    : guidanceData.severity.level === "requires_attention"
+                      ? "bg-amber-50 text-amber-800"
+                      : "bg-red-50 text-red-800"
+                }`}>
+                  <p className="text-sm font-medium">{guidanceData.severity.description}</p>
                 </div>
               </div>
             )}
