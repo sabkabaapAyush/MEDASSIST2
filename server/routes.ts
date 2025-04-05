@@ -220,11 +220,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         patientId 
       });
       
+      // Get patient medical history if patientId is provided
+      let medicalHistory;
+      if (patientId) {
+        const patient = await storage.getPatient(patientId);
+        if (patient) {
+          // Get the latest medical record for the patient
+          const medicalRecords = await storage.getMedicalRecordsByPatientId(patientId);
+          if (medicalRecords.length > 0) {
+            // Sort by date to get the most recent medical record
+            const sortedRecords = medicalRecords.sort((a, b) => 
+              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+            );
+            const latestRecord = sortedRecords[0];
+            
+            medicalHistory = {
+              allergies: latestRecord.allergies || [],
+              medications: latestRecord.currentMedications || [],
+              conditions: latestRecord.medicalConditions || [],
+              bloodType: latestRecord.bloodType || undefined,
+              notes: latestRecord.notes || undefined
+            };
+          }
+        }
+      }
+      
       // Use AI service to analyze the input and generate guidance
       const aiResult = await generateFirstAidGuidanceUnified(
         imageFiles,
         text,
-        audioFilePath
+        audioFilePath,
+        medicalHistory
       );
       
       // Create a first aid guidance record if a patient ID was provided

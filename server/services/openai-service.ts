@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import fs from "fs";
-import { AIAssessmentResult } from "./ai-service";
+import { AIAssessmentResult, MedicalHistory } from "./ai-service";
 
 // Create OpenAI client using the API key from environment variables
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -10,12 +10,14 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
  * @param images Array of image file paths
  * @param textDescription Text description of the injury/condition
  * @param audioFilePath Path to the audio file if available
+ * @param medicalHistory Optional patient medical history for personalized guidance
  * @returns First aid assessment results
  */
 export async function generateFirstAidGuidanceWithOpenAI(
   images: string[], 
   textDescription: string,
-  audioFilePath?: string
+  audioFilePath?: string,
+  medicalHistory?: MedicalHistory
 ): Promise<AIAssessmentResult> {
   try {
     // Create content array for multimodal inputs
@@ -48,6 +50,34 @@ export async function generateFirstAidGuidanceWithOpenAI(
       type: "text",
       text: `Situation description: ${textDescription}`
     });
+    
+    // Add medical history if available
+    if (medicalHistory) {
+      const allergiesText = medicalHistory.allergies?.length 
+        ? `Allergies: ${medicalHistory.allergies.join(', ')}` 
+        : 'No known allergies';
+        
+      const medicationsText = medicalHistory.medications?.length 
+        ? `Current medications: ${medicalHistory.medications.join(', ')}` 
+        : 'No current medications';
+        
+      const conditionsText = medicalHistory.conditions?.length 
+        ? `Medical conditions: ${medicalHistory.conditions.join(', ')}` 
+        : 'No chronic medical conditions';
+        
+      const bloodTypeText = medicalHistory.bloodType 
+        ? `Blood type: ${medicalHistory.bloodType}` 
+        : '';
+        
+      const notesText = medicalHistory.notes 
+        ? `Additional medical notes: ${medicalHistory.notes}` 
+        : '';
+      
+      content.push({
+        type: "text",
+        text: `PATIENT MEDICAL HISTORY (IMPORTANT - Consider for treatment recommendations):\n${allergiesText}\n${medicationsText}\n${conditionsText}\n${bloodTypeText}\n${notesText}\n\nPlease tailor your first aid guidance taking into account these medical conditions, allergies, and medications. Warn about any potential complications based on the patient's medical history.`
+      });
+    }
 
     // Process audio if available 
     let audioTranscription = "";

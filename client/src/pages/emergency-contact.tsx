@@ -75,12 +75,10 @@ export default function EmergencyContact() {
         throw new Error("No patient selected");
       }
 
-      const response = await apiRequest(
-        "PUT",
-        `/api/patients/${currentPatient.id}`,
-        data
-      );
-      return response.json();
+      return await apiRequest(`/api/patients/${currentPatient.id}`, {
+        method: "PUT",
+        body: JSON.stringify(data)
+      });
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/patients"] });

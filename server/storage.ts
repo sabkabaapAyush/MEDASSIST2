@@ -247,7 +247,13 @@ export class MemStorage implements IStorage {
       ...insertRecord, 
       id, 
       date: new Date(),
-      images: insertRecord.images || []
+      updatedAt: new Date(),
+      images: insertRecord.images || [],
+      allergies: insertRecord.allergies || [],
+      currentMedications: insertRecord.currentMedications || [],
+      medicalConditions: insertRecord.medicalConditions || [],
+      bloodType: insertRecord.bloodType || null,
+      notes: insertRecord.notes || null
     };
     this.medicalRecords.set(id, record);
     return record;
@@ -257,7 +263,11 @@ export class MemStorage implements IStorage {
     const record = this.medicalRecords.get(id);
     if (!record) return undefined;
     
-    const updatedRecord = { ...record, ...updateRecord };
+    const updatedRecord = { 
+      ...record, 
+      ...updateRecord,
+      updatedAt: new Date()
+    };
     this.medicalRecords.set(id, updatedRecord);
     return updatedRecord;
   }

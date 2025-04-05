@@ -31,6 +31,12 @@ export const medicalRecords = pgTable("medical_records", {
   type: text("type").notNull(),
   status: text("status").notNull(),
   images: text("images").array(),
+  allergies: text("allergies").array(),
+  currentMedications: text("current_medications").array(),
+  medicalConditions: text("medical_conditions").array(),
+  bloodType: text("blood_type"),
+  notes: text("notes"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const firstAidGuidance = pgTable("first_aid_guidance", {
@@ -98,6 +104,11 @@ export const insertMedicalRecordSchema = createInsertSchema(medicalRecords).pick
   type: true,
   status: true,
   images: true,
+  allergies: true,
+  currentMedications: true,
+  medicalConditions: true,
+  bloodType: true,
+  notes: true,
 });
 
 export const insertFirstAidGuidanceSchema = createInsertSchema(firstAidGuidance).pick({

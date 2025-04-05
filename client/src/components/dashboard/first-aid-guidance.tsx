@@ -64,16 +64,17 @@ export default function FirstAidGuidance({ guidanceData }: { guidanceData?: Guid
       }
       
       // Create a medical record from the guidance
-      const response = await apiRequest("POST", "/api/medical-records", {
-        patientId: currentPatient.id,
-        title: "First Aid Guidance",
-        description: guidanceData.assessment,
-        type: "First Aid",
-        status: "New",
-        images: []
+      return await apiRequest("/api/medical-records", {
+        method: "POST",
+        body: JSON.stringify({
+          patientId: currentPatient.id,
+          title: "First Aid Guidance",
+          description: guidanceData.assessment,
+          type: "First Aid",
+          status: "New",
+          images: []
+        })
       });
-      
-      return response.json();
     },
     onSuccess: () => {
       setIsSaved(true);

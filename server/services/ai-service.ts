@@ -21,10 +21,19 @@ export interface AIAssessmentResult {
  * @returns First aid assessment results
  * @throws Error if all AI services are unavailable
  */
+export interface MedicalHistory {
+  allergies: string[];
+  medications: string[];
+  conditions: string[];
+  bloodType?: string;
+  notes?: string;
+}
+
 export async function generateFirstAidGuidanceUnified(
   images: string[] = [],
   textDescription: string = "",
-  audioFilePath?: string
+  audioFilePath?: string,
+  medicalHistory?: MedicalHistory
 ): Promise<AIAssessmentResult> {
   // Check if an API preference was set in environment
   const preferredApi = process.env.PREFERRED_AI_API?.toLowerCase();

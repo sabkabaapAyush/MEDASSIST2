@@ -101,7 +101,9 @@ export default function ConsultationsPage() {
         endpoint += `?patientId=${selectedPatientId}`;
       }
       
-      return await apiRequest<Consultation[]>(endpoint);
+      return await apiRequest<Consultation[]>(endpoint, {
+        method: 'GET'
+      });
     },
     enabled: !!activeTab
   });
@@ -416,7 +418,7 @@ export default function ConsultationsPage() {
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
                         <div>
-                          <CardTitle className="font-medium text-lg">{consultation.topic}</CardTitle>
+                          <CardTitle className="font-medium text-lg">{consultation.request}</CardTitle>
                           <CardDescription className="mt-1">
                             Patient: {getPatientName(consultation.patientId)}
                           </CardDescription>
@@ -439,10 +441,10 @@ export default function ConsultationsPage() {
                       )}
                       
                       <div className="flex items-center gap-2 mb-2">
-                        {consultation.type === 'video' && <Video className="h-4 w-4 text-muted-foreground" />}
-                        {consultation.type === 'phone' && <Phone className="h-4 w-4 text-muted-foreground" />}
-                        {consultation.type === 'chat' && <MessageCircle className="h-4 w-4 text-muted-foreground" />}
-                        <span className="text-sm capitalize">{consultation.type} consultation</span>
+                        {consultation.consultationType === 'video' && <Video className="h-4 w-4 text-muted-foreground" />}
+                        {consultation.consultationType === 'phone' && <Phone className="h-4 w-4 text-muted-foreground" />}
+                        {consultation.consultationType === 'chat' && <MessageCircle className="h-4 w-4 text-muted-foreground" />}
+                        <span className="text-sm capitalize">{consultation.consultationType} consultation</span>
                       </div>
                       
                       {consultation.patientNotes && (
@@ -479,12 +481,12 @@ export default function ConsultationsPage() {
                           
                           <div className="py-4 space-y-4">
                             <div>
-                              <h3 className="font-medium text-lg">{consultation.topic}</h3>
+                              <h3 className="font-medium text-lg">{consultation.request}</h3>
                               <p className="text-muted-foreground">
-                                {consultation.type === 'video' && <Video className="inline h-4 w-4 mr-1" />}
-                                {consultation.type === 'phone' && <Phone className="inline h-4 w-4 mr-1" />}
-                                {consultation.type === 'chat' && <MessageCircle className="inline h-4 w-4 mr-1" />}
-                                <span className="capitalize">{consultation.type} consultation</span>
+                                {consultation.consultationType === 'video' && <Video className="inline h-4 w-4 mr-1" />}
+                                {consultation.consultationType === 'phone' && <Phone className="inline h-4 w-4 mr-1" />}
+                                {consultation.consultationType === 'chat' && <MessageCircle className="inline h-4 w-4 mr-1" />}
+                                <span className="capitalize">{consultation.consultationType} consultation</span>
                               </p>
                             </div>
                             
