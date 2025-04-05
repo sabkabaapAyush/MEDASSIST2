@@ -1,4 +1,4 @@
-import { generateFirstAidGuidance } from "./openai-service";
+import { generateFirstAidGuidanceWithOpenAI } from "./openai-service";
 import { generateFirstAidGuidanceWithDeepSeek } from "./deepseek-service";
 import { generateFirstAidGuidanceWithGemini } from "./gemini-service";
 
@@ -44,7 +44,7 @@ export async function generateFirstAidGuidanceUnified(
     // Try OpenAI only if explicitly preferred or if it's the only service available
     if (preferredApi === "openai" || 
         (!process.env.GEMINI_API_KEY && !process.env.DEEPSEEK_API_KEY && process.env.OPENAI_API_KEY)) {
-      return await generateFirstAidGuidance(images, textDescription, audioFilePath);
+      return await generateFirstAidGuidanceWithOpenAI(images, textDescription, audioFilePath);
     }
     
     // If we reach here with no preferred API or if the preferred API doesn't have credentials,
@@ -76,7 +76,7 @@ export async function generateFirstAidGuidanceUnified(
       
       // Try OpenAI as first fallback if available and not already tried
       if (preferredApi !== "openai" && process.env.OPENAI_API_KEY) {
-        return await generateFirstAidGuidance(images, textDescription, audioFilePath);
+        return await generateFirstAidGuidanceWithOpenAI(images, textDescription, audioFilePath);
       }
       
       // If we reached here, we need to try the next fallback
@@ -90,7 +90,7 @@ export async function generateFirstAidGuidanceUnified(
       try {
         // Try the last remaining service option if available
         if (preferredApi !== "openai" && preferredApi !== "gemini" && process.env.OPENAI_API_KEY) {
-          return await generateFirstAidGuidance(images, textDescription, audioFilePath);
+          return await generateFirstAidGuidanceWithOpenAI(images, textDescription, audioFilePath);
         }
         
         if (preferredApi !== "deepseek" && preferredApi !== "gemini" && process.env.DEEPSEEK_API_KEY) {

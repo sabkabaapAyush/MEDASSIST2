@@ -1,0 +1,3 @@
+@echo off
+echo Starting MedAssist...
+npm run dev

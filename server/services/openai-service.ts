@@ -1,143 +1,117 @@
 import OpenAI from "openai";
 import fs from "fs";
-import { promisify } from "util";
-import stream from "stream";
+import { AIAssessmentResult } from "./ai-service";
 
-// Initialize OpenAI client with API key
+// Create OpenAI client using the API key from environment variables
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Helper function to convert readable stream to buffer
-const pipeline = promisify(stream.pipeline);
-
-// Interface for assessment results
-export interface AIAssessmentResult {
-  assessment: string;
-  steps: string[];
-  warnings: string[];
-}
-
 /**
- * Process multimodal input (images, text, audio) to generate first aid guidance
+ * Process multimodal input (images, text, audio) to generate first aid guidance using OpenAI
  * @param images Array of image file paths
  * @param textDescription Text description of the injury/condition
  * @param audioFilePath Path to the audio file if available
  * @returns First aid assessment results
  */
-export async function generateFirstAidGuidance(
-  images: string[] = [],
-  textDescription: string = "",
+export async function generateFirstAidGuidanceWithOpenAI(
+  images: string[], 
+  textDescription: string,
   audioFilePath?: string
 ): Promise<AIAssessmentResult> {
   try {
-    let audioTranscription = "";
+    // Create content array for multimodal inputs
+    const content: Array<any> = [];
     
-    // Transcribe audio if provided
-    if (audioFilePath) {
-      audioTranscription = await transcribeAudio(audioFilePath);
-    }
-    
-    // Combine text and audio inputs
-    const combinedText = [
-      textDescription ? `Text Description: ${textDescription}` : "",
-      audioTranscription ? `Voice Description: ${audioTranscription}` : ""
-    ].filter(Boolean).join("\n\n");
-    
-    // Prepare messages for OpenAI
-    const messages: any[] = [
+    // Add system message to guide the AI
+    content.push({
+      type: "text",
+      text: `You are a medical first aid assistant. 
+      Analyze the provided information (images, text description, and/or audio transcription) 
+      and provide first aid guidance. Structure your response as a JSON object with the following properties:
       {
-        role: "system",
-        content: `You are a first aid expert. Analyze the provided information about an injury or medical condition and provide:
-        1. A clear assessment of the situation
-        2. Step-by-step first aid instructions
-        3. Warning signs that would indicate the need to seek professional medical attention`
-      }
-    ];
-    
-    // Add text content if available
-    if (combinedText) {
-      messages.push({
-        role: "user",
-        content: combinedText
-      });
-    }
-    
-    // Add images if available
-    if (images.length > 0) {
-      const imageContents = images.map(imagePath => ({
-        type: "image_url",
-        image_url: {
-          url: `data:image/jpeg;base64,${fs.readFileSync(imagePath).toString('base64')}`
-        }
-      }));
-      
-      messages.push({
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "Please analyze these images of the injury/condition and provide appropriate first aid guidance."
-          },
-          ...imageContents
-        ]
-      });
-    }
-    
-    // Call the API with gpt-4o (the most advanced model)
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      messages,
-      response_format: { type: "json_object" },
-      temperature: 0.7,
-      max_tokens: 1000,
+        "assessment": "Brief description of the injury or condition based on the provided inputs",
+        "steps": ["Step 1 of first aid treatment", "Step 2", "..."],
+        "warnings": ["Important warning or caution", "..."]
+      }`
     });
     
-    const content = response.choices[0].message.content;
-    if (!content) {
-      throw new Error("No content in the response");
+    // Add user text input as context
+    content.push({
+      type: "text",
+      text: `Situation description: ${textDescription}`
+    });
+
+    // Process audio if available 
+    let audioTranscription = "";
+    if (audioFilePath && fs.existsSync(audioFilePath)) {
+      audioTranscription = await transcribeAudioWithOpenAI(audioFilePath);
+      content.push({
+        type: "text",
+        text: `Additional voice information: ${audioTranscription}`
+      });
     }
-    
+
+    // Add images if available
+    for (const imagePath of images) {
+      if (fs.existsSync(imagePath)) {
+        const base64Image = fs.readFileSync(imagePath, { encoding: "base64" });
+        content.push({
+          type: "image_url",
+          image_url: {
+            url: `data:image/jpeg;base64,${base64Image}`
+          }
+        });
+      }
+    }
+
+    // Make API call to OpenAI with multimodal content
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      messages: [
+        {
+          role: "user",
+          content: content
+        }
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 800
+    });
+
+    // Parse and return the response
+    const responseContent = response.choices[0].message.content;
+    if (!responseContent) {
+      throw new Error("Empty response from OpenAI");
+    }
+
     try {
-      const parsedResponse = JSON.parse(content);
-      
-      return {
-        assessment: parsedResponse.assessment || "Unable to provide assessment with given information.",
-        steps: parsedResponse.steps || [],
-        warnings: parsedResponse.warnings || []
-      };
+      return JSON.parse(responseContent) as AIAssessmentResult;
     } catch (parseError) {
-      console.error("Error parsing JSON response:", parseError);
-      
-      // If JSON parsing fails, attempt to extract structured data from text
-      return extractStructuredDataFromText(content);
+      console.error("Failed to parse OpenAI response as JSON:", parseError);
+      return extractStructuredDataFromText(responseContent);
     }
   } catch (error: any) {
-    console.error("Error generating first aid guidance:", error);
-    
-    // If the error is related to API rate limits or authentication
-    if (error?.status === 429 || error?.status === 401) {
-      throw new Error(`API service unavailable. Please try again later or contact support to update API credentials.`);
-    }
-    
-    throw new Error(`Failed to generate first aid guidance: ${error?.message || 'Unknown error'}`);
+    console.error("Error generating first aid guidance with OpenAI:", error);
+    throw new Error(`OpenAI Service Error: ${error.message || "Unknown error"}`);
   }
 }
 
 /**
- * Transcribe audio file to text
+ * Transcribe audio file to text using OpenAI Whisper API
  * @param audioFilePath Path to the audio file
  * @returns Transcribed text
  */
-async function transcribeAudio(audioFilePath: string): Promise<string> {
+async function transcribeAudioWithOpenAI(audioFilePath: string): Promise<string> {
   try {
+    const audioReadStream = fs.createReadStream(audioFilePath);
+    
     const transcription = await openai.audio.transcriptions.create({
-      file: fs.createReadStream(audioFilePath),
+      file: audioReadStream,
       model: "whisper-1",
     });
-    
+
     return transcription.text;
   } catch (error: any) {
-    console.error("Error transcribing audio:", error);
-    return "";
+    console.error("Error transcribing audio with OpenAI:", error);
+    return ""; // Return empty string on error to allow the process to continue
   }
 }
 
@@ -147,39 +121,49 @@ async function transcribeAudio(audioFilePath: string): Promise<string> {
  * @returns Structured assessment data
  */
 function extractStructuredDataFromText(text: string): AIAssessmentResult {
-  // Default values
-  const result: AIAssessmentResult = {
-    assessment: "",
-    steps: [],
-    warnings: []
-  };
+  console.log("Extracting structured data from OpenAI text response");
   
-  // Try to extract assessment section
-  const assessmentRegex = new RegExp("assessment:?\\s*(.*?)(?=steps:|warnings:|$)", "i");
-  const assessmentMatch = text.match(assessmentRegex);
+  // Default result structure
+  const result: AIAssessmentResult = {
+    assessment: "Unable to parse response properly. Please try again.",
+    steps: [],
+    warnings: ["The system encountered an issue processing the response."]
+  };
+
+  // Extract assessment (look for a paragraph that seems to be describing the condition)
+  const assessmentMatch = text.match(/assessment[:\s]+([^\n]+)/i) || 
+                          text.match(/situation[:\s]+([^\n]+)/i) ||
+                          text.match(/condition[:\s]+([^\n]+)/i);
   if (assessmentMatch && assessmentMatch[1]) {
     result.assessment = assessmentMatch[1].trim();
   }
-  
-  // Try to extract steps
-  const stepsRegex = new RegExp("steps:?\\s*(.*?)(?=warnings:|$)", "i");
-  const stepsMatch = text.match(stepsRegex);
+
+  // Extract steps
+  const stepsMatch = text.match(/steps[:\s]+([\s\S]+?)(?=warnings|$)/i);
   if (stepsMatch && stepsMatch[1]) {
-    result.steps = stepsMatch[1]
-      .split(/\d+\.\s+/)
-      .filter(Boolean)
-      .map(step => step.trim());
+    const stepsText = stepsMatch[1].trim();
+    // Look for numbered steps or bullet points
+    const steps = stepsText.split(/\n+/).map(step => {
+      return step.replace(/^[0-9#\-*.\s]+/, '').trim();
+    }).filter(Boolean);
+    
+    if (steps.length > 0) {
+      result.steps = steps;
+    }
   }
-  
-  // Try to extract warnings
-  const warningsRegex = new RegExp("warnings:?\\s*(.*?)(?=$)", "i");
-  const warningsMatch = text.match(warningsRegex);
+
+  // Extract warnings
+  const warningsMatch = text.match(/warnings[:\s]+([\s\S]+?)(?=\n\n|$)/i);
   if (warningsMatch && warningsMatch[1]) {
-    result.warnings = warningsMatch[1]
-      .split(/\d+\.\s+|\*\s+|-\s+/)
-      .filter(Boolean)
-      .map(warning => warning.trim());
+    const warningsText = warningsMatch[1].trim();
+    const warnings = warningsText.split(/\n+/).map(warning => {
+      return warning.replace(/^[0-9#\-*.\s]+/, '').trim();
+    }).filter(Boolean);
+    
+    if (warnings.length > 0) {
+      result.warnings = warnings;
+    }
   }
-  
+
   return result;
 }

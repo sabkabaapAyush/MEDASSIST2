@@ -22,8 +22,12 @@ cp postcss.config.js dist_package/
 cp drizzle.config.ts dist_package/
 cp theme.json dist_package/
 cp MedAssist.bat dist_package/
+cp start-medassist.sh dist_package/
 cp README.md dist_package/
 cp .env.template dist_package/
+
+# Make shell script executable
+chmod +x dist_package/start-medassist.sh
 
 # Create a tar.gz file (more universally available than zip)
 echo "Creating archive..."
