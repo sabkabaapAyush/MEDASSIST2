@@ -1,5 +1,7 @@
 # MedAssist First Aid Application
 
+A cutting-edge mobile health application that provides intelligent, multi-modal medical assistance through advanced AI technologies.
+
 ## How to Start the Application
 
 ### Prerequisites
@@ -46,6 +48,8 @@
 - Multi-modal input (images, text, audio)
 - Emergency contact information
 - Multiple AI provider support with fallback chain
+- Medical professional consultation
+- Nearby hospitals locator
 
 ## Support
 For support, contact the MedAssist team.
