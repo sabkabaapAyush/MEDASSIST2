@@ -259,7 +259,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         steps: aiResult.steps,
         warnings: aiResult.warnings,
         savedToRecords: !!guidanceRecord,
-        guidanceId: guidanceRecord?.id
+        guidanceId: guidanceRecord?.id,
+        severity: aiResult.severity
       });
     } catch (error: any) {
       if (error instanceof z.ZodError) {
