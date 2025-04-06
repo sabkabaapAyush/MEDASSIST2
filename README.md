@@ -4,13 +4,11 @@ MedAssist is a cutting-edge, AI-powered first aid and emergency response assista
 
 Developed using Streamlit, the app features an intuitive interface, supports image uploads, and delivers actionable advice in real-time. From guiding CPR to recommending nearby hospitals, MedAssist is a virtual medical co-pilot when it matters most. 
 
-Shape 
 
 Why “MedAssist”? 
 
 The name MedAssist reflects its core purpose: a Medical Assistant that responds live during emergencies—an AI-first responder that understands language, context, and visuals to provide the right help at the right time. 
 
-Shape 
 
 Core Technologies 
 
@@ -24,7 +22,6 @@ DeepSeek for domain-specific accuracy in medical responses
 
 This multi-model approach allows MedAssist to cross-reference, refine, and verify information before delivering life-saving guidance. 
 
-Shape 
 
 Key Features 
 
@@ -58,7 +55,6 @@ Recommends the nearest medical facility depending on condition severity and geog
  Advanced Insights Dashboard 
 Tracks usage trends, emergency types, response times, and regional health patterns—helping you continuously improve services. 
 
-Shape 
 
 How It Works 
 
@@ -98,7 +94,6 @@ Saves session data: symptoms, inputs, location, response time
 
 Medical history securely stored for future reference 
 
-Shape 
 
 Current Capabilities 
 
@@ -121,8 +116,6 @@ Current Capabilities
 ✅ Streamlit-based UI 
 
 ✅ Voice + Text input options 
-
-Shape 
 
 Coming Soon 
 
